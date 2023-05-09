@@ -31,6 +31,8 @@ We made an update to the tool after presenting it in the conference. To improve 
 
 ## Usage
 
+You need to install the python packages listed in the requirements.txt before running the tool.
+
 1. Clone the repository to your local storage. For example:
 
 ```
