@@ -1,6 +1,6 @@
 # SATD Tracker
 
-SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from a Git project directory and saves them into a CSV file. This tool was presented in our paper titled "Automated Self-Admitted Technical Debt Tracking at Commit-Level: A Language-independent Approach" published at the TechDebt 2023 conference.
+SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from a Git project directory and saves them into a CSV file. This tool was presented in our paper titled [Automated Self-Admitted Technical Debt Tracking at Commit-Level: A Language-independent Approach](https://arxiv.org/abs/2304.07829) published at the [TechDebt 2023 conference](https://2023.techdebtconf.org/details/TechDebt-2023-short-papers/2/Automated-Self-Admitted-Technical-Debt-Tracking-at-Commit-Level-A-Language-independe).
 
 ## Features
 
