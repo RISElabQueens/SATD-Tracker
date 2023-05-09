@@ -31,15 +31,19 @@ We made an update to the tool after presenting it in the conference. To improve 
 
 ## Usage
 
-You need to install the python packages listed in the requirements.txt before running the tool.
+1. Install the python packages listed in the requirements.txt:
 
-1. Clone the repository to your local storage. For example:
+```
+pip install -r requirements.txt
+```
+
+2. Clone the repository to your local storage. For example:
 
 ```
 git clone https://github.com/apache/commons-math.git
 ```
 
-2. Run the following command to extract the SATDs from the locally saved repository:
+3. Run the following command to extract the SATDs from the locally saved repository:
 
 ```
 python SATD_Tracker.py -path "/content/projects/commons-math" -output "commons-math-SATD.csv"
