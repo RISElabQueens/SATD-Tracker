@@ -250,62 +250,63 @@ def get_project_SATDs(files_hunks, target_commit=None):
     return filecs_satds
 
 def SATDs_to_dataframe(filecs_satds):
-    lastAppearedInFile = []
-    fileDeleteInCommit = []
-    createdInFile = []
-    createdInLine = []
+    last_appeared_in_file = []
+    file_deleted_in_commit = []
+    created_in_file = []
+    created_in_line = []
     line = []
-    createdInCommit = []
-    deletedInCommit = []
-    createdInDate = []
-    deletedInDate = []
-    createdInHunk = []
-    deletedInHunk = []
+    created_in_commit = []
+    deleted_in_commit = []
+    created_at_date = []
+    deleted_at_date = []
+    created_in_hunk = []
+    deleted_in_hunk = []
     content = []
-    prevLineContent = []
-    nextLineContent = []
+    prev_line_content = []
+    next_line_content = []
     for filec,satds in filecs_satds.items():
         for satd in satds:
-            lastAppearedInFile.append(filec.split('_#_')[0])  # TODO: change _#_ to FILE_COMMIT_SEP
-            fileDeleteInCommit.append(filec.split('_#_')[1] if '_#_' in filec else None)
-            createdInFile.append(satd['created_in_file'])
-            createdInLine.append(satd['created_in_line'])
+            last_appeared_in_file.append(filec.split('_#_')[0])  # TODO: change _#_ to FILE_COMMIT_SEP
+            file_deleted_in_commit.append(filec.split('_#_')[1] if '_#_' in filec else None)
+            created_in_file.append(satd['created_in_file'])
+            created_in_line.append(satd['created_in_line'])
             line.append(satd['line'])
-            createdInCommit.append(satd['created_in_commit'].hexsha)
-            deletedInCommit.append('' if satd['deleted_in_commit'] is None else satd['deleted_in_commit'].hexsha)
-            createdInDate.append(satd['created_in_commit'].committed_datetime)
-            deletedInDate.append('' if satd['deleted_in_commit'] is None else satd['deleted_in_commit'].committed_datetime)
-            createdInHunk.append(satd['created_in_hunk'])
-            deletedInHunk.append('' if satd['deleted_in_hunk'] is None else satd['deleted_in_hunk'])
+            created_in_commit.append(satd['created_in_commit'].hexsha)
+            deleted_in_commit.append('' if satd['deleted_in_commit'] is None else satd['deleted_in_commit'].hexsha)
+            created_at_date.append(satd['created_in_commit'].committed_datetime)
+            deleted_at_date.append('' if satd['deleted_in_commit'] is None else satd['deleted_in_commit'].committed_datetime)
+            created_in_hunk.append(satd['created_in_hunk'])
+            deleted_in_hunk.append('' if satd['deleted_in_hunk'] is None else satd['deleted_in_hunk'])
             content.append(satd['content'])
-            prevLineContent.append(satd['prev_line_content'])
-            nextLineContent.append(satd['next_line_content'])
+            prev_line_content.append(satd['prev_line_content'])
+            next_line_content.append(satd['next_line_content'])
     df = pd.DataFrame(
-    {'createdInFile': createdInFile,
-     'lastAppearedInFile': lastAppearedInFile,
-     'lastFileDeleteInCommit': fileDeleteInCommit,
-     'createdInLine': createdInLine,
-     'lastAppearedInLine': line,
-     'createdInCommit': createdInCommit,
-     'deletedInCommit': deletedInCommit,
-     'createdInDate': createdInDate,
-     'deletedInDate': deletedInDate,
-     'createdInHunk': createdInHunk,
-     'deletedInHunk': deletedInHunk,
+    {'created_in_file': created_in_file,
+     'last_appeared_in_file': last_appeared_in_file,
+     'lastfile_deleted_in_commit': file_deleted_in_commit,
+     'created_in_line': created_in_line,
+     'last_appeared_in_line': line,
+     'created_in_commit': created_in_commit,
+     'deleted_in_commit': deleted_in_commit,
+     'created_at_date': created_at_date,
+     'deleted_at_date': deleted_at_date,
+     'created_in_hunk': created_in_hunk,
+     'deleted_in_hunk': deleted_in_hunk,
      'content': content,
-     'prevLineContent': prevLineContent,
-     'nextLineContent': nextLineContent
+     'prev_line_content': prev_line_content,
+     'next_line_content': next_line_content
     })
     return df
-
+    
+    
 def add_followingSatdCandidates(df):
-    lastAppearedInFile = df['lastAppearedInFile']
-    createdInCommit = df['createdInCommit']
-    deletedInCommit = df['deletedInCommit']
-    followingSatdCandidates = len(lastAppearedInFile) * ['']
-    for i in range(len(lastAppearedInFile)):
-        for j in range(len(lastAppearedInFile)):
-            if i!=j and lastAppearedInFile[i]==lastAppearedInFile[j] and deletedInCommit[i]==createdInCommit[j]:
+    last_appeared_in_file = df['last_appeared_in_file']
+    created_in_commit = df['created_in_commit']
+    deleted_in_commit = df['deleted_in_commit']
+    followingSatdCandidates = len(last_appeared_in_file) * ['']
+    for i in range(len(last_appeared_in_file)):
+        for j in range(len(last_appeared_in_file)):
+            if i!=j and last_appeared_in_file[i]==last_appeared_in_file[j] and deleted_in_commit[i]==created_in_commit[j]:
                 if followingSatdCandidates[i]=='':
                     followingSatdCandidates[i] = str(j)
                 else:
@@ -396,26 +397,26 @@ def get_files_commits_matchingSatds(df):
     files_commits_matchingSatds = {}
     for index, row in df.iterrows():
         if len(row['followingSatdCandidates'])>0:
-            if row['lastAppearedInFile'] not in files_commits_matchingSatds:
-                files_commits_matchingSatds[row['lastAppearedInFile']] = {}
+            if row['last_appeared_in_file'] not in files_commits_matchingSatds:
+                files_commits_matchingSatds[row['last_appeared_in_file']] = {}
             for candid in row['followingSatdCandidates'].split(','):
-                if row['deletedInCommit'] not in files_commits_matchingSatds[row['lastAppearedInFile']]:
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']] = {'indList1':[], 'indList2':[], 'strList1':[], 'strList2':[], 'prevList1':[], 'prevList2':[], 'nextList1':[], 'nextList2':[], 'hunkList1':[], 'hunkList2':[]}
+                if row['deleted_in_commit'] not in files_commits_matchingSatds[row['last_appeared_in_file']]:
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']] = {'indList1':[], 'indList2':[], 'strList1':[], 'strList2':[], 'prevList1':[], 'prevList2':[], 'nextList1':[], 'nextList2':[], 'hunkList1':[], 'hunkList2':[]}
                 candid = int(candid.strip())
-                if index not in files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['indList1']:
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['indList1'].append(index)
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['strList1'].append(row['content'])
-                    #files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['strList1'].append(re.split(';\s*/*', row['content'])[-1]) # takes only the SATD part
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['prevList1'].append(row['prevLineContent'])
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['nextList1'].append(row['nextLineContent'])
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['hunkList1'].append(row['deletedInHunk'])
-                if candid not in files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['indList2']:
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['indList2'].append(candid)
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['strList2'].append(df.iloc[candid, df.columns.get_loc('content')])
-                    #files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['strList2'].append(re.split(';\s*/*',df.iloc[candid, df.columns.get_loc('content')])[-1]) # takes only the SATD part
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['prevList2'].append(df.iloc[candid, df.columns.get_loc('prevLineContent')])
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['nextList2'].append(df.iloc[candid, df.columns.get_loc('nextLineContent')])
-                    files_commits_matchingSatds[row['lastAppearedInFile']][row['deletedInCommit']]['hunkList2'].append(df.iloc[candid, df.columns.get_loc('createdInHunk')])
+                if index not in files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['indList1']:
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['indList1'].append(index)
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['strList1'].append(row['content'])
+                    #files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['strList1'].append(re.split(';\s*/*', row['content'])[-1]) # takes only the SATD part
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['prevList1'].append(row['prev_line_content'])
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['nextList1'].append(row['next_line_content'])
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['hunkList1'].append(row['deleted_in_hunk'])
+                if candid not in files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['indList2']:
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['indList2'].append(candid)
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['strList2'].append(df.iloc[candid, df.columns.get_loc('content')])
+                    #files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['strList2'].append(re.split(';\s*/*',df.iloc[candid, df.columns.get_loc('content')])[-1]) # takes only the SATD part
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['prevList2'].append(df.iloc[candid, df.columns.get_loc('prev_line_content')])
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['nextList2'].append(df.iloc[candid, df.columns.get_loc('next_line_content')])
+                    files_commits_matchingSatds[row['last_appeared_in_file']][row['deleted_in_commit']]['hunkList2'].append(df.iloc[candid, df.columns.get_loc('created_in_hunk')])
     return files_commits_matchingSatds 
  
 def add_followingSatdByGreedy(df, files_commits_matchingSatds, strWeight, prevWeight, nextWeight, hunkWeight, threshold):
@@ -432,46 +433,45 @@ def add_followingSatdByGreedy(df, files_commits_matchingSatds, strWeight, prevWe
 
 
 # After finding the following SATDs, we can merge them and delete false positive rows.
-# When we merge them, we need to update some columns like deletedInCommit, line, and content
+# When we merge them, we need to update some columns like deleted_in_commit, line, and content
 def merge_followingSATDs_in_dataframe(df, followingSatdColumn, deleteFollowingSATDs):
-    df['followedBy'] = '' # the list of following SATDs. For example, if 11 follwos 10, and 12 follwos 11, this field will be "11,12" for row 10
-    df['deletedInLines'] = '' # it has the list of middle deleted lines. i.e. the lines when the SATD were updated.
-    df['createdInLines'] = '' # it has the list of middle created lines. i.e. the lines when the SATD were updated.
-    df['updatedInCommits'] = '' # it has the list of middle commits. 
+    df['followed_by'] = '' # the list of following SATDs. For example, if 11 follwos 10, and 12 follwos 11, this field will be "11,12" for row 10
+    df['deleted_in_lines'] = '' # it has the list of middle deleted lines. i.e. the lines when the SATD were updated.
+    df['created_in_lines'] = '' # it has the list of middle created lines. i.e. the lines when the SATD were updated.
+    df['updated_in_commits'] = '' # it has the list of middle commits. 
     deleteIndices = []
     for index, row in df.iterrows():
-        deletedInLines=[]
-        createdInLines=[]
+        deleted_in_lines=[]
+        created_in_lines=[]
         content=row['content']
-        updatedInCommits = []
+        updated_in_commits = []
         findex = index
         while df.iloc[findex, df.columns.get_loc(followingSatdColumn)] not in ['','-']:
-            deletedInLines.append(df.iloc[findex, df.columns.get_loc('lastAppearedInLine')])
+            deleted_in_lines.append(df.iloc[findex, df.columns.get_loc('last_appeared_in_line')])
             findex = df.iloc[findex, df.columns.get_loc(followingSatdColumn)]
-            df.iloc[index, df.columns.get_loc('followedBy')] += str(findex) + ','
-            createdInLines.append(df.iloc[findex, df.columns.get_loc('createdInLine')])
+            df.iloc[index, df.columns.get_loc('followed_by')] += str(findex) + ','
+            created_in_lines.append(df.iloc[findex, df.columns.get_loc('created_in_line')])
             content += '\n' + df.iloc[findex, df.columns.get_loc('content')]
-            updatedInCommits.append(df.iloc[findex, df.columns.get_loc('createdInCommit')])
+            updated_in_commits.append(df.iloc[findex, df.columns.get_loc('created_in_commit')])
             deleteIndices.append(findex)
         if findex!=index:
-            df.iloc[index, df.columns.get_loc('deletedInCommit')] = df.iloc[findex, df.columns.get_loc('deletedInCommit')]
-            df.iloc[index, df.columns.get_loc('deletedInHunk')] = df.iloc[findex, df.columns.get_loc('deletedInHunk')]
-            df.iloc[index, df.columns.get_loc('deletedInDate')] = df.iloc[findex, df.columns.get_loc('deletedInDate')]
-            df.iloc[index, df.columns.get_loc('lastAppearedInLine')] = df.iloc[findex, df.columns.get_loc('lastAppearedInLine')]
-            df.iloc[index, df.columns.get_loc('deletedInLines')] = str(deletedInLines)
-            df.iloc[index, df.columns.get_loc('createdInLines')] = str(createdInLines)
+            df.iloc[index, df.columns.get_loc('deleted_in_commit')] = df.iloc[findex, df.columns.get_loc('deleted_in_commit')]
+            df.iloc[index, df.columns.get_loc('deleted_in_hunk')] = df.iloc[findex, df.columns.get_loc('deleted_in_hunk')]
+            df.iloc[index, df.columns.get_loc('deleted_at_date')] = df.iloc[findex, df.columns.get_loc('deleted_at_date')]
+            df.iloc[index, df.columns.get_loc('last_appeared_in_line')] = df.iloc[findex, df.columns.get_loc('last_appeared_in_line')]
+            df.iloc[index, df.columns.get_loc('deleted_in_lines')] = str(deleted_in_lines)
+            df.iloc[index, df.columns.get_loc('created_in_lines')] = str(created_in_lines)
             df.iloc[index, df.columns.get_loc('content')] = content
-            df.iloc[index, df.columns.get_loc('updatedInCommits')] = str(updatedInCommits)
+            df.iloc[index, df.columns.get_loc('updated_in_commits')] = str(updated_in_commits)
             if 'deletedInMaster' in df.columns:
                 df.iloc[index, df.columns.get_loc('deletedInMaster')] = df.iloc[findex, df.columns.get_loc('deletedInMaster')]
 
     if deleteFollowingSATDs:
         df = df.drop(index=deleteIndices)
         df = df.reset_index(drop=True)
-        df = df.drop(columns=['followingSatdCandidates', 'followingSatdByGreedy', 'followingSatdCandidatesByFileRename', 'followingSatdByFileRename', 'followingSatdByHeuristics', 'followedBy'], errors='ignore')
-    df = df.drop(columns=['prevLineContent', 'nextLineContent'])
-    return df
-    
+        df = df.drop(columns=['followingSatdCandidates', 'followingSatdByGreedy', 'followingSatdCandidatesByFileRename', 'followingSatdByFileRename', 'followingSatdByHeuristics', 'followed_by'], errors='ignore')
+    df = df.drop(columns=['prev_line_content', 'next_line_content'])
+    return df    
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -503,10 +503,10 @@ if __name__ == "__main__":
     
     if 'followingSatd' in df.columns:
         df.followingSatd = df.followingSatd.fillna('')
-    if 'prevLineContent' in df.columns:
-        df.prevLineContent = df.prevLineContent.fillna('')
-    if 'nextLineContent' in df.columns:
-        df.nextLineContent = df.nextLineContent.fillna('')
+    if 'prev_line_content' in df.columns:
+        df.prev_line_content = df.prev_line_content.fillna('')
+    if 'next_line_content' in df.columns:
+        df.next_line_content = df.next_line_content.fillna('')
     
     # Find the following SATDs
     df = add_followingSatdCandidates(df)
@@ -516,6 +516,7 @@ if __name__ == "__main__":
     # merge the following SATDs
     df2 = df.copy()
     df2 = merge_followingSATDs_in_dataframe(df2, 'followingSatdByGreedy', True)
+    df2 = df2.drop(columns=['created_in_hunk', 'deleted_in_hunk', 'lastfile_deleted_in_commit'])
     print("Number of deleted SATDs after merging them:",len(df)-len(df2))
     print("Final number of SATDs:",len(df2))
     df2.to_csv(args.output)
