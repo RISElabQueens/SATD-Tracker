@@ -1,0 +1,7 @@
+pandas
+nltk
+numpy
+regex
+argparse
+GitPython
+unidiff
