@@ -6,24 +6,21 @@ SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from 
 
 For each extracted SATD, the tool reports the following information:
 
-- createdInFile: The file path which the SATD created in.
-- lastAppearedInFile: The file path which the SATD appeared in for the last time before it was deleted or if we traced it to the last commit.
-- lastFileDeleteInCommit: If the last file which the SATD appeared in is deleted, it shows the corresponding commit.
-- createdInLine: The SATD line number when it was created.
-- lastAppearedInLine: The SATD line number when it appeared for the last time.
-- createdInCommit: The commit in which the SATD was created in.
-- deletedInCommit: The commit in which the SATD was deleted in.
-- createdInDate: The date-time of the commit that the SATD was created in.
-- deletedInDate: The date-time of the commit that the SATD was deleted in.
-- createdInHunk: The hunk number in which the SATD was created in.
-- deletedInHunk: The hunk number in which the SATD was deleted in.
+- created_in_file: The file path which the SATD created in.
+- last_appeared_in_file: The file path which the SATD appeared in for the last time before it was deleted or if we traced it to the last commit.
+- created_in_line: The SATD line number when it was created.
+- last_appeared_in_line: The SATD line number when it appeared for the last time.
+- created_in_commit: The commit in which the SATD was created in.
+- deleted_in_commit: The commit in which the SATD was deleted in.
+- created_at_date: The date-time of the commit that the SATD was created in.
+- deleted_at_date: The date-time of the commit that the SATD was deleted in.
 - content: The whole line content in which we detect the SATD in.
 
 In case a SATD line is updated in one or more commits, we also provide:
 
-- deletedInLines
-- createdInLines
-- updatedInCommits
+- deleted_in_lines
+- created_in_lines
+- updated_in_commits
 
 ## Update
 
