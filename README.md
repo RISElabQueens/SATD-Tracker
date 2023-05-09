@@ -50,7 +50,7 @@ If you use this tool in your research, please cite our paper:
 ```
 @inproceedings{SATD-Tracker,
    title={Automated Self-Admitted Technical Debt Tracking at Commit-Level: A Language-independent Approach},
-   author={Your Name and Co-authors},
+   author={Mohammad Sadegh Sheikhaei, Yuan Tian},
    booktitle={Proceedings of the TechDebt 2023 conference},
    year={2023}
 }
