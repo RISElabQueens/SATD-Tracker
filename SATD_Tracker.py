@@ -46,7 +46,7 @@ def get_files_hunks_for_a_commit(repo , commit, file=None):
     file_patchindex = {} # the index of files in patch_set
     for patched_file in patch_set:
         file_patchindex[patched_file.path] = len(file_patchindex)
-
+    
     files_hunks = {}
     oldpath_newpath = {}    # we need the file name in the time (commit) that the SATD action is occured 
     if parent==EMPTY_TREE_SHA:
@@ -61,10 +61,12 @@ def get_files_hunks_for_a_commit(repo , commit, file=None):
             diff = parent.diff(commit, file) # we have to use this method because PatchSet doesn't provide the file renames correctly
 
     for patch in diff:
-        if patch.b_path in file_patchindex:
+        ab_path = patch.b_path
+        if (patch.b_path != None) and (patch.b_path in file_patchindex):
             indx = file_patchindex[patch.b_path]
             hunks = patch_set[indx]
         elif patch.a_path in file_patchindex:
+            ab_path = patch.a_path
             indx = file_patchindex[patch.a_path]
             hunks = patch_set[indx]
         else:
@@ -73,7 +75,7 @@ def get_files_hunks_for_a_commit(repo , commit, file=None):
             print('b_path:',patch.b_path)
             hunks = []
 
-        files_hunks[patch.b_path] = hunks
+        files_hunks[ab_path] = hunks
         if patch.change_type in ['R']: # C: copy   R:rename  include C??????
             oldpath_newpath[patch.rename_from] = patch.b_path
 
@@ -85,37 +87,52 @@ def get_files_hunks_for_all_commits(repo, commits, file=None):
     i=0
     for commit in commits:
         if i%500 == 0:
-            print('Processed commits:',i) 
+            print('Processed commits:',i, 'of', len(commits)) 
         oldpath_newpath, fh = get_files_hunks_for_a_commit(repo, commit, file=file)
         # update the keys in files_hunks according to oldpath_newpath
         for oldp,newp in oldpath_newpath.items():
             # if newp already exists in files_hunks (meaning that there was a file with the same name but deleted before this commit), we convert its key to filepath_#_deletionCommit
             if newp in files_hunks:
-                #print('newp already exists in files_hunks ===>',newp)
+                # print('newp already exists in files_hunks ===>',newp)
                 hexsha = files_hunks[newp][-1]['commit'].hexsha
                 files_hunks[newp+'_#_'+hexsha] = files_hunks.pop(newp)
-                #print('we change that key to:',newp+'_#_'+hexsha)
+                # print('we change that key to:',newp+'_#_'+hexsha)
             if oldp in files_hunks:
                 files_hunks[newp] = files_hunks.pop(oldp)
-            #else:
-                #print("oldpath not found in files_hunks:",oldp)
+            # else:
+                # print("oldpath not found in files_hunks:",oldp)
         # add the new fh to files_hunks
         for f,h in fh.items():
             if f not in files_hunks:
                 files_hunks[f] = []
             files_hunks[f].append({'commit':commit, 'file':f, 'hunks':h})
         i += 1
+    print('Processed commits:',i, 'of', len(commits)) 
     return files_hunks
+    
 
+def get_single_line_comment(line, file_extension):
+    comment = ""
+    file_extension = file_extension.lower()
+    if file_extension in ['py', 'php', 'rb', 'sql', 'pl', 'r']:
+        if "#" in line:
+            comment = line.split("#", 1)[1]
+            
+    elif file_extension in ['java', 'js', 'c', 'cpp', 'h', 'cs', 'php', 'swift', 'go', 'kt', 'kts', 'scala', 'rs']:
+        if "//" in line:
+            comment = line.split("//", 1)[1].strip()
+        # elif "/*" in line:
+        #     comment = line.split("/*", 1)[1].split("*/", 1)[0].strip()
+    elif file_extension == 'm':
+        if "%" in line:
+            comment = line.split("%", 1)[1]    
+    return comment
 
 # This code is based on MAT SATD detection introduced in paper "How Far HaveWe Progressed in Identifying Self-admitted Technical Debts? A Comprehensive Empirical Study"
 # https://github.com/Naplues/MAT/blob/master/src/main/methods/Mat.java
-def ismatch_MAT(string):
-    strings = string.split('//',1)
-    if len(strings)==2:
-        comment = strings[1]
-    else:
-        return False
+# I updated it to extract the comment from any programming language, and then apply the MAT approach
+def ismatch_MAT(string, file_extension):
+    comment =  get_single_line_comment(string, file_extension)
     comment = comment.lower().replace("'","")
     tokens = comment.split(' ')
     for token in tokens:
@@ -126,9 +143,10 @@ def ismatch_MAT(string):
                 return True
     return False
 
+
 # In this version we save more information about SATDs (i.e. hunk_index and SATD's context (its prev and next line))
 # This information will be used to detect the following SATD of each SATD (if exists)
-def get_raw_SATDs(hunks, steps):
+def get_raw_SATDs(hunks, steps, file_extension):
     newLineWarning = 'No newline at end of file' # this is a synthetic static warning that I should ignore, because it is not part of the user code
     # an example for newLineWarning:
         # file name: helix-core/src/test/java/org/apache/helix/alerts/TestEvaluateAlerts.java
@@ -148,7 +166,7 @@ def get_raw_SATDs(hunks, steps):
                 nextLine = lines[n+1] if n<len(lines)-1 else ''
                 if len(line)>0 and line[0]=='-':
                     #if 'todo' in line.lower():
-                    if ismatch_MAT(line):
+                    if ismatch_MAT(line, file_extension):
                         codeLine = hunk.source_start + l
                         for satd in satds:
                             if satd['deleted_in_commit']==None and satd['line']==codeLine:
@@ -183,7 +201,7 @@ def get_raw_SATDs(hunks, steps):
             unchanged_satds_l = []  # number of lines to be added to unchanged_satds (unchanged_satds are the satds that appear in the diff but their line doesn't start with - or +)
             for line in lines:
                 #if len(line)>0 and line[0]!='-' and line[0]!='+' and 'todo' in line.lower():
-                if len(line)>0 and line[0]!='-' and line[0]!='+' and ismatch_MAT(line):
+                if len(line)>0 and line[0]!='-' and line[0]!='+' and ismatch_MAT(line, file_extension):
                     unchanged_satds_l.append(l)
                 if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip()!=newLineWarning): 
                     l+=1
@@ -207,7 +225,7 @@ def get_raw_SATDs(hunks, steps):
                 nextLine = lines[n+1] if n<len(lines)-1 else ''
                 if len(line)>0 and line[0]=='+':
                     #if 'todo' in re.findall(r"[\w']+|[.,!?;]", line.lower()):
-                    if ismatch_MAT(line):
+                    if ismatch_MAT(line, file_extension):
                         codeLine = hunk.target_start + l
                         satd = {'created_in_file':hunks[i]['file'], 'created_in_line':codeLine, 'line':codeLine, 'created_in_commit':hunks[i]['commit'], 'deleted_in_commit':None, 'created_in_hunk':j, 'deleted_in_hunk':None, 'content':line[1:].strip()}
                         if n!=0 and len(prevLine)>0 and prevLine[0]=='+':
@@ -243,10 +261,11 @@ def get_project_SATDs(files_hunks, target_commit=None):
         i += 1
         file = filec.split('_#_')[0]
         if i%500==0:
+            #print('number of processed files: %d  file(_commit)=%s file_name=%s                         \r'%(i,filec, files_name[file_id]), end="")
             print('number of processed files:', i)
-        if file.endswith('.java'):  # ???? only java ????
-            filecs_satds[filec] = get_raw_SATDs(files_hunks[filec], 0) 
-
+        if file.split('.')[-1] in ['py', 'php', 'rb', 'sql', 'pl', 'r', 'java', 'js', 'c', 'cpp', 'h', 'cs', 'swift', 'go', 'kt', 'kts', 'scala', 'rs', 'm']: 
+            filecs_satds[filec] = get_raw_SATDs(files_hunks[filec], 0, file.split('.')[-1]) 
+    print('number of processed files:', i)
     return filecs_satds
 
 def SATDs_to_dataframe(filecs_satds):
@@ -296,9 +315,9 @@ def SATDs_to_dataframe(filecs_satds):
      'prev_line_content': prev_line_content,
      'next_line_content': next_line_content
     })
-    return df
+    return df    
     
-    
+
 def add_followingSatdCandidates(df):
     last_appeared_in_file = df['last_appeared_in_file']
     created_in_commit = df['created_in_commit']
@@ -313,7 +332,6 @@ def add_followingSatdCandidates(df):
                     followingSatdCandidates[i] += ', '+str(j)
     df['followingSatdCandidates'] = followingSatdCandidates
     return df
-
 
 def my_tokenizer(text, remove_singleCharWords=False, remove_stopwords=False, stemming=False):
     #tokens = text.split(' ')

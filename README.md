@@ -4,6 +4,8 @@ SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from 
 
 ## Features
 
+This tool identifies and tracks self-admitted technical debts (SATDs) in various programming languages, including C/C++, C#, Java, Python, PHP, JavaScript, Ruby, Swift, Kotlin, R, MATLAB, SQL, Scala, Perl, and Rust. To support additional programming languages, you can easily update the `get_single_line_comment()` method to handle the comment syntax of the new language and add the corresponding file extension to the list of file extensions in the `get_project_SATDs()` function.
+
 For each extracted SATD, the tool reports the following information:
 
 - created_in_file: The file path which the SATD created in.
