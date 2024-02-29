@@ -9,6 +9,8 @@ import numpy as np
 import re
 import nltk
 from nltk.corpus import stopwords
+import shutil
+import os
 
 nltk.download('stopwords')
 cachedStopWords = set(stopwords.words("english")) # we cache it for better performance (this way it runs much faster!)
@@ -20,6 +22,7 @@ def get_master_commits(repo):
 
     # Get all master commits
     master_commits_raw = list(repo.iter_commits(master_branch))
+    print("Total commits in master branch:", len(master_commits_raw))
 
     # sort the commits by date
     master_commits_raw = sorted(master_commits_raw, key=lambda x: x.committed_datetime)
@@ -29,6 +32,7 @@ def get_master_commits(repo):
     while len(master_commits[-1].parents)>0:
         master_commits.append(master_commits[-1].parents[0])
     master_commits.reverse()
+    print("Commits in the direct lineage of master branch (i.e., commits that are the first parent of next commit):", len(master_commits))
     return master_commits
 
 
@@ -249,7 +253,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
 
 # if target_commit=None: Extract all satds in the master branch of a project
 # if target_commit!=None: Extract all satds in a sequence of commits (preferably in the master branch) of a project that leads to a target commit
-def get_project_SATDs(files_hunks, target_commit=None):
+def get_project_SATDs(files_hunks, file_extensions, target_commit=None):
     num_files = len(files_hunks)
     print('number of files in project:',num_files)
 
@@ -263,7 +267,7 @@ def get_project_SATDs(files_hunks, target_commit=None):
         if i%500==0:
             #print('number of processed files: %d  file(_commit)=%s file_name=%s                         \r'%(i,filec, files_name[file_id]), end="")
             print('number of processed files:', i)
-        if file.split('.')[-1] in ['py', 'php', 'rb', 'sql', 'pl', 'r', 'java', 'js', 'c', 'cpp', 'h', 'cs', 'swift', 'go', 'kt', 'kts', 'scala', 'rs', 'm']: 
+        if file.split('.')[-1] in file_extensions: 
             filecs_satds[filec] = get_raw_SATDs(files_hunks[filec], 0, file.split('.')[-1]) 
     print('number of processed files:', i)
     return filecs_satds
@@ -490,32 +494,79 @@ def merge_followingSATDs_in_dataframe(df, followingSatdColumn, deleteFollowingSA
         df = df.drop(columns=['followingSatdCandidates', 'followingSatdByGreedy', 'followingSatdCandidatesByFileRename', 'followingSatdByFileRename', 'followingSatdByHeuristics', 'followed_by'], errors='ignore')
     df = df.drop(columns=['prev_line_content', 'next_line_content'])
     return df    
-    
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-path", help="path to the git project folder")
-    parser.add_argument("-output", default="SATD-merged.csv", help="path to output csv file")
+
+
+def parse_arguments():
+    def ensure_trailing_slash(path):
+        """Ensure the path ends with a slash."""
+        return path if path.endswith('/') else path + '/'
+
+    parser = argparse.ArgumentParser(description='SATD-Tracker parameters')
+    parser.add_argument('--repo', type=str, default="https://github.com/apache/commons-math.git",
+                        help='Repository path (local directory or GitHub URL) [default: https://github.com/apache/commons-math.git]')
+    parser.add_argument('--file-extensions', type=lambda s: [ext.strip() for ext in s.split(',')], default='py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m',
+                        help='File extensions, for example: py,java,cpp. [default: py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m]')
+    parser.add_argument('--output-file', type=str, default=None,
+                        help='Output file [default: username_reponame_SATD.csv or directoryname_SATD.csv]')
+    parser.add_argument('--output-path', type=ensure_trailing_slash, default='SATD/',
+                        help='Output path [default: SATD/]')
+    parser.add_argument('--provide-raw-SATD', action='store_true', default=False,
+                        help='In addition to the final list of SATD, also provide raw SATD [default: False]')
+    parser.add_argument('--downloading-path', type=ensure_trailing_slash, default='repositories/',
+                        help='Downloading path for GitHub repositories [default: repositories/]')
+    parser.add_argument('--delete-downloaded-repo', action='store_true', default=False,
+                        help='Delete downloaded repository after extracting SATDs [default: False]')
+
     args = parser.parse_args()
+    args.repo = args.repo.rstrip('/')
+    os.makedirs(args.output_path, exist_ok=True)
+    os.makedirs(args.downloading_path, exist_ok=True)
+    if args.output_file is None:
+        repo_parts = args.repo.split('/')
+        if args.repo.startswith('https://github.com'):
+            username, reponame = repo_parts[-2], repo_parts[-1].replace('.git', '')
+            args.output_file = f'{username}_{reponame}_SATD.csv'
+            args.raw_output_file = f'{username}_{reponame}_rawSATD.csv'
+        else:
+            directoryname = repo_parts[-1]
+            args.output_file = f'{directoryname}_SATD.csv'
+            args.raw_output_file = f'{directoryname}_rawSATD.csv'
+    else:
+        if args.output_file.endswith('.csv') == False:
+            args.output_file += '.csv'
+        args.raw_output_file = args.output_file.replace('.csv','_raw.csv')
+    return args
 
-    if not args.path:
-        print("Error: Git project path not provided.")
-        sys.exit(1)
-
-    # get the repository
-    repo = Repo(args.path)
+if __name__ == "__main__":
+    args = parse_arguments()
+    # Print all parameters
+    print("\nConfiguration Parameters:")
+    for arg, value in vars(args).items():
+            print(f"{arg}: {value}")
+    print()
+    
+    # download repository
+    if args.repo.startswith('https://github.com'):
+        print('Downloading repository...')
+        repo_dir = args.downloading_path + args.repo.split('/')[-1].replace('.git', '')
+        Repo.clone_from(args.repo, repo_dir)
+        repo = Repo(repo_dir)
+        print('Done')
+    else:
+        repo = Repo(args.repo)
 
     # get the sequence of commits in the master branch
     master_commits = get_master_commits(repo)
     
     # extract the sequence of hunks for all files
-    print("Extract the sequence of hunks for all files...")
+    print("\nExtract the sequence of hunks for all files...")
     files_hunks = get_files_hunks_for_all_commits(repo, master_commits)
     if None in files_hunks:
         del files_hunks[None]
         
     # Extract and track raw SATDs from files_hunks
     print("Extract and track raw SATDs from files_hunks...")
-    files_satds = get_project_SATDs(files_hunks)
+    files_satds = get_project_SATDs(files_hunks, args.file_extensions)
     df = SATDs_to_dataframe(files_satds)
     print("Number of extracted raw SATDs:", len(df))
     
@@ -531,11 +582,20 @@ if __name__ == "__main__":
     files_commits_matchingSatds = get_files_commits_matchingSatds(df)
     df = add_followingSatdByGreedy(df, files_commits_matchingSatds, 0.6, 0.2, 0, 0.2, 0.4) # these are the optimum weights we obtained through a grid search on a labeled dataset
     
+    # save raw SATDs
+    if args.provide_raw_SATD:
+        df.to_csv(args.output_path + args.raw_output_file)
+        print("The extracted raw SATDs saved in", args.output_path + args.raw_output_file)
+
     # merge the following SATDs
     df2 = df.copy()
     df2 = merge_followingSATDs_in_dataframe(df2, 'followingSatdByGreedy', True)
     df2 = df2.drop(columns=['created_in_hunk', 'deleted_in_hunk', 'lastfile_deleted_in_commit'])
     print("Number of deleted SATDs after merging them:",len(df)-len(df2))
     print("Final number of SATDs:",len(df2))
-    df2.to_csv(args.output)
-    print("The extracted SATDs saved in", args.output)
+    df2.to_csv(args.output_path + args.output_file)
+    print("The extracted SATDs saved in", args.output_path + args.output_file)
+
+    # delete the downloaded repository
+    if args.repo.startswith('https://github.com') and args.delete_downloaded_repo:
+        shutil.rmtree(repo_dir)
