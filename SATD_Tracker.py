@@ -185,6 +185,10 @@ def get_raw_SATDs(hunks, steps, file_extension):
                                 satd['deleted_in_hunk']=j # hunk_index (in the old version that used vcsSHARK data, we used hunk_id, but now we use the hunk_index)
                 if len(line)==0 or (len(line)>0 and line[0]!='+'):
                     l += 1
+        ##### update last_appeared_in_file ######
+        for satd in satds:
+            if satd['deleted_in_commit']==None:
+                satd['last_appeared_in_file']=hunks[i]['file']
         ####### update SATD line numbers ########
         for satd in satds:
             satd['line_change'] = 0
@@ -486,6 +490,7 @@ def merge_followingSATDs_in_dataframe(df, followingSatdColumn, deleteFollowingSA
             df.iloc[index, df.columns.get_loc('deleted_in_hunk')] = df.iloc[findex, df.columns.get_loc('deleted_in_hunk')]
             df.iloc[index, df.columns.get_loc('deleted_at_date')] = df.iloc[findex, df.columns.get_loc('deleted_at_date')]
             df.iloc[index, df.columns.get_loc('last_appeared_in_line')] = df.iloc[findex, df.columns.get_loc('last_appeared_in_line')]
+            df.iloc[index, df.columns.get_loc('last_appeared_in_file')] = df.iloc[findex, df.columns.get_loc('last_appeared_in_file')]
             df.iloc[index, df.columns.get_loc('deleted_in_lines')] = str(deleted_in_lines)
             df.iloc[index, df.columns.get_loc('created_in_lines')] = str(created_in_lines)
             df.iloc[index, df.columns.get_loc('content')] = content
