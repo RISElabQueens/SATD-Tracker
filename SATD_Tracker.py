@@ -86,6 +86,8 @@ def get_files_hunks_for_a_commit(repo , commit, file=None):
     return oldpath_newpath, files_hunks
 
 
+# I tried to change this method to run it faster by multi-threading, 
+# but failed, likely due to Global Interpreter Lock (GIL) in Python
 def get_files_hunks_for_all_commits(repo, commits, file=None):
     files_hunks = {}
     i=0
@@ -179,6 +181,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                                 if n!=len(lines)-1 and len(nextLine)>0 and nextLine[0]=='-':
                                     satd['next_line_content'] = nextLine[1:].strip()
                                 satd['deleted_in_commit']=hunks[i]['commit']
+                                satd['last_appeared_in_file']=hunks[i]['file']
                                 satd['deleted_in_hunk']=j # hunk_index (in the old version that used vcsSHARK data, we used hunk_id, but now we use the hunk_index)
                 if len(line)==0 or (len(line)>0 and line[0]!='+'):
                     l += 1
@@ -231,7 +234,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                     #if 'todo' in re.findall(r"[\w']+|[.,!?;]", line.lower()):
                     if ismatch_MAT(line, file_extension):
                         codeLine = hunk.target_start + l
-                        satd = {'created_in_file':hunks[i]['file'], 'created_in_line':codeLine, 'line':codeLine, 'created_in_commit':hunks[i]['commit'], 'deleted_in_commit':None, 'created_in_hunk':j, 'deleted_in_hunk':None, 'content':line[1:].strip()}
+                        satd = {'created_in_file':hunks[i]['file'], 'last_appeared_in_file':hunks[i]['file'], 'created_in_line':codeLine, 'line':codeLine, 'created_in_commit':hunks[i]['commit'], 'deleted_in_commit':None, 'created_in_hunk':j, 'deleted_in_hunk':None, 'content':line[1:].strip()}
                         if n!=0 and len(prevLine)>0 and prevLine[0]=='+':
                             satd['prev_line_content'] = prevLine[1:].strip()
                         else:
@@ -274,7 +277,7 @@ def get_project_SATDs(files_hunks, file_extensions, target_commit=None):
 
 def SATDs_to_dataframe(filecs_satds):
     last_appeared_in_file = []
-    file_deleted_in_commit = []
+    #file_deleted_in_commit = []
     created_in_file = []
     created_in_line = []
     line = []
@@ -289,8 +292,9 @@ def SATDs_to_dataframe(filecs_satds):
     next_line_content = []
     for filec,satds in filecs_satds.items():
         for satd in satds:
-            last_appeared_in_file.append(filec.split('_#_')[0])  # TODO: change _#_ to FILE_COMMIT_SEP
-            file_deleted_in_commit.append(filec.split('_#_')[1] if '_#_' in filec else None)
+            last_appeared_in_file.append(satd['last_appeared_in_file'])
+            #last_appeared_in_file.append(filec.split('_#_')[0])  # TODO: change _#_ to FILE_COMMIT_SEP
+            #file_deleted_in_commit.append(filec.split('_#_')[1] if '_#_' in filec else None)
             created_in_file.append(satd['created_in_file'])
             created_in_line.append(satd['created_in_line'])
             line.append(satd['line'])
@@ -306,7 +310,7 @@ def SATDs_to_dataframe(filecs_satds):
     df = pd.DataFrame(
     {'created_in_file': created_in_file,
      'last_appeared_in_file': last_appeared_in_file,
-     'lastfile_deleted_in_commit': file_deleted_in_commit,
+     #'lastfile_deleted_in_commit': file_deleted_in_commit,
      'created_in_line': created_in_line,
      'last_appeared_in_line': line,
      'created_in_commit': created_in_commit,
@@ -507,7 +511,7 @@ def parse_arguments():
     parser.add_argument('--file-extensions', type=lambda s: [ext.strip() for ext in s.split(',')], default='py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m',
                         help='File extensions, for example: py,java,cpp. [default: py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m]')
     parser.add_argument('--output-file', type=str, default=None,
-                        help='Output file [default: username_reponame_SATD.csv or directoryname_SATD.csv]')
+                        help='Output file [default: username___reponame_SATD.csv or directoryname_SATD.csv]')
     parser.add_argument('--output-path', type=ensure_trailing_slash, default='SATD/',
                         help='Output path [default: SATD/]')
     parser.add_argument('--provide-raw-SATD', action='store_true', default=False,
@@ -525,8 +529,8 @@ def parse_arguments():
         repo_parts = args.repo.split('/')
         if args.repo.startswith('https://github.com'):
             username, reponame = repo_parts[-2], repo_parts[-1].replace('.git', '')
-            args.output_file = f'{username}_{reponame}_SATD.csv'
-            args.raw_output_file = f'{username}_{reponame}_rawSATD.csv'
+            args.output_file = f'{username}___{reponame}_SATD.csv'
+            args.raw_output_file = f'{username}___{reponame}_rawSATD.csv'
         else:
             directoryname = repo_parts[-1]
             args.output_file = f'{directoryname}_SATD.csv'
@@ -590,7 +594,7 @@ if __name__ == "__main__":
     # merge the following SATDs
     df2 = df.copy()
     df2 = merge_followingSATDs_in_dataframe(df2, 'followingSatdByGreedy', True)
-    df2 = df2.drop(columns=['created_in_hunk', 'deleted_in_hunk', 'lastfile_deleted_in_commit'])
+    df2 = df2.drop(columns=['created_in_hunk', 'deleted_in_hunk']) # no need to drop 'lastfile_deleted_in_commit'. We don't have it anymore.
     print("Number of deleted SATDs after merging them:",len(df)-len(df2))
     print("Final number of SATDs:",len(df2))
     df2.to_csv(args.output_path + args.output_file)
