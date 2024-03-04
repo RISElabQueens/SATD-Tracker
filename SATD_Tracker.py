@@ -12,7 +12,7 @@ from nltk.corpus import stopwords
 import shutil
 import os
 
-nltk.download('stopwords')
+nltk.download('stopwords', quiet=True)
 cachedStopWords = set(stopwords.words("english")) # we cache it for better performance (this way it runs much faster!)
 
 
@@ -181,7 +181,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                                 if n!=len(lines)-1 and len(nextLine)>0 and nextLine[0]=='-':
                                     satd['next_line_content'] = nextLine[1:].strip()
                                 satd['deleted_in_commit']=hunks[i]['commit']
-                                satd['last_appeared_in_file']=hunks[i]['file']
+                                satd['last_appeared_in_file']=hunks[i]['file'] # if the SATD is deleted from a file, and at the same time the file is renamed, we consider the new name (i.e., hunks[i]['file']), because in case of SATD update, we will find it in the new file name
                                 satd['deleted_in_hunk']=j # hunk_index (in the old version that used vcsSHARK data, we used hunk_id, but now we use the hunk_index)
                 if len(line)==0 or (len(line)>0 and line[0]!='+'):
                     l += 1
@@ -315,8 +315,8 @@ def SATDs_to_dataframe(filecs_satds):
      'last_appeared_in_line': line,
      'created_in_commit': created_in_commit,
      'deleted_in_commit': deleted_in_commit,
-     'created_at_date': created_at_date,
-     'deleted_at_date': deleted_at_date,
+     'created_at_date': pd.to_datetime(created_at_date, utc=True),
+     'deleted_at_date': pd.to_datetime(deleted_at_date, utc=True),
      'created_in_hunk': created_in_hunk,
      'deleted_in_hunk': deleted_in_hunk,
      'content': content,
@@ -327,13 +327,14 @@ def SATDs_to_dataframe(filecs_satds):
     
 
 def add_followingSatdCandidates(df):
+    created_in_file = df['created_in_file']
     last_appeared_in_file = df['last_appeared_in_file']
     created_in_commit = df['created_in_commit']
     deleted_in_commit = df['deleted_in_commit']
     followingSatdCandidates = len(last_appeared_in_file) * ['']
     for i in range(len(last_appeared_in_file)):
         for j in range(len(last_appeared_in_file)):
-            if i!=j and last_appeared_in_file[i]==last_appeared_in_file[j] and deleted_in_commit[i]==created_in_commit[j]:
+            if i!=j and last_appeared_in_file[i]==created_in_file[j] and deleted_in_commit[i]==created_in_commit[j]:
                 if followingSatdCandidates[i]=='':
                     followingSatdCandidates[i] = str(j)
                 else:
@@ -387,7 +388,7 @@ def get_hunk_sim_matrix(hunkList1, hunkList2):
             matrix[i,j] = 1 if hunkList1[i]==hunkList2[j] else 0
     return matrix
 
-# for a specific file and a specific commit, it gets the iformation (e.g. prevLine, nextLine, str, hunk#) of deleted and inserted SATDs as List1 and List2 respectively
+# for a specific file and a specific commit, it gets the information (e.g. prevLine, nextLine, str, hunk#) of deleted and inserted SATDs as List1 and List2 respectively
 # it returns an array of n by 2 that n is the number of found matches. For each match, it stores the index of deleted SATD in list1 and the index of new SATD in list2.
 def string_match(file_commit_id, strList1, strList2, prevList1, prevList2, nextList1, nextList2, hunkList1, hunkList2, strWeight, prevWeight, nextWeight, hunkWeight, threshold, remove_singleCharWords, remove_stopwords):
     if not hasattr(string_match, "cache"):
@@ -597,7 +598,7 @@ if __name__ == "__main__":
     df2 = df2.drop(columns=['created_in_hunk', 'deleted_in_hunk']) # no need to drop 'lastfile_deleted_in_commit'. We don't have it anymore.
     print("Number of deleted SATDs after merging them:",len(df)-len(df2))
     print("Final number of SATDs:",len(df2))
-    df2.to_csv(args.output_path + args.output_file)
+    df2.to_csv(args.output_path + args.output_file, encoding='utf-8', errors='replace')
     print("The extracted SATDs saved in", args.output_path + args.output_file)
 
     # delete the downloaded repository
