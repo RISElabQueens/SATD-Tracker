@@ -36,16 +36,40 @@ We made an update to the tool after presenting it in the conference. To improve 
 pip install -r requirements.txt
 ```
 
-2. Clone the repository to your local storage. For example:
+2. Run the following command to extract the SATDs from a repository:
 
 ```
-git clone https://github.com/apache/commons-math.git
+python SATD_Tracker.py --repo https://github.com/apache/commons-math.git
 ```
 
-3. Run the following command to extract the SATDs from the locally saved repository:
+### Parameters
 
 ```
-python SATD_Tracker.py -path "/content/projects/commons-math" -output "commons-math-SATD.csv"
+usage: SATD_Tracker.py [-h] [--repo REPO] [--file-extensions FILE_EXTENSIONS]
+                       [--output-file OUTPUT_FILE] [--output-path OUTPUT_PATH]
+                       [--provide-raw-SATD] [--downloading-path DOWNLOADING_PATH]
+                       [--delete-downloaded-repo]
+
+SATD-Tracker parameters
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           Repository path (local directory or GitHub URL) [default:
+                        https://github.com/apache/commons-math.git]
+  --file-extensions FILE_EXTENSIONS
+                        File extensions, for example: py,java,cpp. [default: py, php, rb, sql, pl,
+                        r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m]
+  --output-file OUTPUT_FILE
+                        Output file [default: username___reponame_SATD.csv or
+                        directoryname_SATD.csv]
+  --output-path OUTPUT_PATH
+                        Output path [default: SATD/]
+  --provide-raw-SATD    In addition to the final list of SATD, also provide raw SATD [default:
+                        False]
+  --downloading-path DOWNLOADING_PATH
+                        Downloading path for GitHub repositories [default: repositories/]
+  --delete-downloaded-repo
+                        Delete downloaded repository after extracting SATDs [default: False]
 ```
 
 ## Citation
