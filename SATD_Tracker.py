@@ -16,7 +16,7 @@ nltk.download('stopwords', quiet=True)
 cachedStopWords = set(stopwords.words("english")) # we cache it for better performance (this way it runs much faster!)
 
 
-def get_master_commits(repo):
+def get_master_commits(repo, last_commit_to_process=None):
     # Get the master branch
     master_branch = repo.head.reference
 
@@ -33,6 +33,13 @@ def get_master_commits(repo):
         master_commits.append(master_commits[-1].parents[0])
     master_commits.reverse()
     print("Commits in the direct lineage of master branch (i.e., commits that are the first parent of next commit):", len(master_commits))
+    # If last_commit_to_process is provided, truncate the master_commits list after this commit
+    if last_commit_to_process is not None:
+        for i, commit in enumerate(master_commits):
+            if commit.hexsha == last_commit_to_process:
+                master_commits = master_commits[:i+1]
+                break
+        print("Commits in the direct lineage of the master branch, up to the specified commit:", len(master_commits))
     return master_commits
 
 
@@ -149,6 +156,16 @@ def ismatch_MAT(string, file_extension):
                 return True
     return False
 
+# This is an updated version of MAT that checks exact matches between keywords and tokens, to increase precision.
+def ismatch_MAT2(string, file_extension):
+    comment =  get_single_line_comment(string, file_extension)
+    comment = comment.lower().replace("'","")
+    tokens = re.findall(r"\w+|[^\w\s]", comment, re.UNICODE) # Split by word boundaries and include punctuation as separate tokens. Example: "Hello, world!" ==> ['Hello', ',', 'world', '!']
+    for token in tokens:
+        if token in ['todo','fixme','hack', 'xxx']:
+            return True
+    return False
+
 
 # In this version we save more information about SATDs (i.e. hunk_index and SATD's context (its prev and next line))
 # This information will be used to detect the following SATD of each SATD (if exists)
@@ -172,7 +189,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                 nextLine = lines[n+1] if n<len(lines)-1 else ''
                 if len(line)>0 and line[0]=='-':
                     #if 'todo' in line.lower():
-                    if ismatch_MAT(line, file_extension):
+                    if ismatch_MAT2(line, file_extension):
                         codeLine = hunk.source_start + l
                         for satd in satds:
                             if satd['deleted_in_commit']==None and satd['line']==codeLine:
@@ -212,7 +229,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
             unchanged_satds_l = []  # number of lines to be added to unchanged_satds (unchanged_satds are the satds that appear in the diff but their line doesn't start with - or +)
             for line in lines:
                 #if len(line)>0 and line[0]!='-' and line[0]!='+' and 'todo' in line.lower():
-                if len(line)>0 and line[0]!='-' and line[0]!='+' and ismatch_MAT(line, file_extension):
+                if len(line)>0 and line[0]!='-' and line[0]!='+' and ismatch_MAT2(line, file_extension):
                     unchanged_satds_l.append(l)
                 if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip()!=newLineWarning): 
                     l+=1
@@ -236,7 +253,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                 nextLine = lines[n+1] if n<len(lines)-1 else ''
                 if len(line)>0 and line[0]=='+':
                     #if 'todo' in re.findall(r"[\w']+|[.,!?;]", line.lower()):
-                    if ismatch_MAT(line, file_extension):
+                    if ismatch_MAT2(line, file_extension):
                         codeLine = hunk.target_start + l
                         satd = {'created_in_file':hunks[i]['file'], 'last_appeared_in_file':hunks[i]['file'], 'created_in_line':codeLine, 'line':codeLine, 'created_in_commit':hunks[i]['commit'], 'deleted_in_commit':None, 'created_in_hunk':j, 'deleted_in_hunk':None, 'content':line[1:].strip()}
                         if n!=0 and len(prevLine)>0 and prevLine[0]=='+':
@@ -516,6 +533,8 @@ def parse_arguments():
                         help='Repository path (local directory or GitHub URL) [default: https://github.com/apache/commons-math.git]')
     parser.add_argument('--file-extensions', type=lambda s: [ext.strip() for ext in s.split(',')], default='py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m',
                         help='File extensions, for example: py,java,cpp. [default: py, php, rb, sql, pl, r, java, js, c, cpp, h, cs, swift, go, kt, kts, scala, rs, m]')
+    parser.add_argument('--last-commit', type=str, default=None,
+                        help='The last commit to process. It should be in the main branch. [default: None (the last commit in the main branch)]')
     parser.add_argument('--output-file', type=str, default=None,
                         help='Output file [default: username___reponame_SATD.csv or directoryname_SATD.csv]')
     parser.add_argument('--output-path', type=ensure_trailing_slash, default='SATD/',
@@ -566,7 +585,7 @@ if __name__ == "__main__":
         repo = Repo(args.repo)
 
     # get the sequence of commits in the master branch
-    master_commits = get_master_commits(repo)
+    master_commits = get_master_commits(repo, args.last_commit)
     
     # extract the sequence of hunks for all files
     print("\nExtract the sequence of hunks for all files...")
