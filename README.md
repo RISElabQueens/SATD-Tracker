@@ -1,6 +1,19 @@
 # SATD Tracker
 
-SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from a Git project directory and saves them into a CSV file. This tool was presented in our paper titled [Automated Self-Admitted Technical Debt Tracking at Commit-Level: A Language-independent Approach](https://arxiv.org/abs/2304.07829) published at the [TechDebt 2023 conference](https://2023.techdebtconf.org/details/TechDebt-2023-short-papers/2/Automated-Self-Admitted-Technical-Debt-Tracking-at-Commit-Level-A-Language-independe).
+SATD Tracker is a tool that extracts Self Admitted Technical Debts (SATDs) from a Git repository and saves them into a CSV file. It uses the following three steps to track SATDs:
+
+- Step 1: Collect all file hunks for all commits in the master branch
+- Step 2: Identify and track *raw SATDs* from commit-file hunks. In this step, we extract all SATD creation and deletion actions, while some pairs of deletion/creation which occurred in the same file and commit are "SATD update action" rather "resolving a SATD and creating another SATD". We refer to these pairs as *false positives*.
+- Step 3: Detect false positive SATD deletion/creation actions in raw SATDs and convert them to SATD <span style="color:blue">update</span> actions.
+
+The following figure shows the lifecycle of a sample SATD from the Apache-Tomcat project. This SATD is created in commit <span style="color:green">e2f5443b515</span>, then updated in commit <span style="color:blue">fb3b1a48c6</span>, and finally deleted in commit <span style="color:red">c77f96a0bd</span>. Note that in commit <span style="color:blue">fb3b1a48c6</span>, there is a false positive SATD deltion (line 39) and a false positive SATD creation (line 74) that we convert them to SATD update action in step 3.
+
+<img src="Figures/SATD-lifecycle.png" alt="Logo" width="1000">
+
+The following table shows the information about this SATD that is extracted by our tool.
+
+<img src="Figures/SATD-Info.png" alt="Logo" width="1000">
+
 
 ## Features
 
