@@ -125,6 +125,10 @@ def get_files_hunks_for_all_commits(repo, commits, file=None):
     
 
 def get_single_line_comment(line, file_extension):
+    if len(line)>10000: # if it is a too long line ignore it
+        return ""
+    if file_extension=='js' and ('\\n' in line or line.count(';')>10): # if it is multi-line text, ignore it, because in JavaScript, there are some methods that return a significant amount of code
+        return ""
     comment = ""
     file_extension = file_extension.lower()
     if file_extension in ['py', 'php', 'rb', 'sql', 'pl', 'r']:
@@ -181,6 +185,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
         ####### detect deleted SATDs ########
         for j in range(len(hunks[i]['hunks'])): # iterate hunks for deleted SATDs
             hunk = hunks[i]['hunks'][j]
+            # lines = str(hunk).splitlines()[1:] # Don't use splitlines() because it won't result in correct line numbers comparing to github
             lines = str(hunk).split('\n')[1:] # we ignore the first line because it is not part of the code (e.g. "@@ -18,12 +18,8 @@")
             l = 0
             for n in range(len(lines)):
