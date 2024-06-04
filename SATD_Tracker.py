@@ -174,7 +174,7 @@ def ismatch_MAT2(string, file_extension):
 # In this version we save more information about SATDs (i.e. hunk_index and SATD's context (its prev and next line))
 # This information will be used to detect the following SATD of each SATD (if exists)
 def get_raw_SATDs(hunks, steps, file_extension):
-    newLineWarning = 'No newline at end of file' # this is a synthetic static warning that I should ignore, because it is not part of the user code
+    newLineWarning = ['No newline at end of file', '\\ No newline at end of file'] # this is a synthetic static warning that I should ignore, because it is not part of the user code
     # an example for newLineWarning:
         # file name: helix-core/src/test/java/org/apache/helix/alerts/TestEvaluateAlerts.java
         # https://github.com/apache/helix/commit/f414aad4c9b26fc767eaf373f7691f8e0487a598  --> see deleted line 395
@@ -236,7 +236,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                 #if len(line)>0 and line[0]!='-' and line[0]!='+' and 'todo' in line.lower():
                 if len(line)>0 and line[0]!='-' and line[0]!='+' and ismatch_MAT2(line, file_extension):
                     unchanged_satds_l.append(l)
-                if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip()!=newLineWarning): 
+                if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip() not in newLineWarning): 
                     l+=1
             for satd in sorted(satds, key=lambda item: item['line_before_update']):
                 if satd['deleted_in_commit']==None and satd['created_in_commit']!=hunks[i]['commit']: # maybe no need the second condition but lets keep it just in case
@@ -270,7 +270,7 @@ def get_raw_SATDs(hunks, steps, file_extension):
                         else:
                             satd['next_line_content'] = ''
                         satds.append(satd)
-                if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip()!=newLineWarning):
+                if len(line)==0 or (len(line)>0 and line[0]!='-' and line.strip() not in newLineWarning):
                     l += 1
     for satd in satds:
         if 'line_change' in satd:
