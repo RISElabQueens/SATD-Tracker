@@ -54,44 +54,23 @@ def get_files_hunks_for_a_commit(repo , commit, file=None):
     else:
         uni_diff_text = repo.git.diff(parent, commit, file)
     patch_set = PatchSet(StringIO(uni_diff_text)) # we have to use PatchSet library because diff in gitpython provides all information in string (even with parent.diff(commit), the diff for each file/hunk is string)
-    file_patchindex = {} # the index of files in patch_set
-    for patched_file in patch_set:
-        file_patchindex[patched_file.path] = len(file_patchindex)
     
     files_hunks = {}
     oldpath_newpath = {}    # we need the file name in the time (commit) that the SATD action is occured 
-    if parent==EMPTY_TREE_SHA:
-        if file is None:
-            diff = commit.diff(EMPTY_TREE_SHA, create_patch=True) # we have to use this method because PatchSet doesn't provide the file renames correctly
-        else:
-            diff = commit.diff(EMPTY_TREE_SHA, file, create_patch=True) # we have to use this method because PatchSet doesn't provide the file renames correctly
-    else:
-        if file is None:
-            diff = parent.diff(commit) # we have to use this method because PatchSet doesn't provide the file renames correctly
-        else:
-            diff = parent.diff(commit, file) # we have to use this method because PatchSet doesn't provide the file renames correctly
 
-    for patch in diff:
-        ab_path = patch.b_path
-        if (patch.b_path != None) and (patch.b_path in file_patchindex):
-            indx = file_patchindex[patch.b_path]
-            hunks = patch_set[indx]
-        elif patch.a_path in file_patchindex:
-            ab_path = patch.a_path
-            indx = file_patchindex[patch.a_path]
-            hunks = patch_set[indx]
+    for patch in patch_set:
+        # if patch.source_file=='/dev/null' or patch.target_file=='/dev/null': # the file is created or the file is deleted
+        #     print(patch.source_file,'--->',patch.target_file)
+        if patch.target_file != '/dev/null':
+            files_hunks[patch.target_file[2:]] = patch # target_file starts with "b/"
+        elif patch.source_file != '/dev/null':
+            files_hunks[patch.source_file[2:]] = patch # target_file starts with "b/"
         else:
-            print('Nither patch.b_path nor patch.a_path found in file_patchindex:')
-            print('a_path:',patch.a_path)
-            print('b_path:',patch.b_path)
-            hunks = []
-
-        files_hunks[ab_path] = hunks
-        if patch.change_type in ['R']: # C: copy   R:rename  include C??????
-            oldpath_newpath[patch.rename_from] = patch.b_path
+            print("Both source and target files are /dev/null !!!")
+        if patch.source_file[2:] != patch.target_file[2:] and patch.source_file != '/dev/null' and patch.target_file != '/dev/null':
+            oldpath_newpath[patch.source_file[2:]] = patch.target_file[2:]
 
     return oldpath_newpath, files_hunks
-
 
 # I tried to change this method to run it faster by multi-threading, 
 # but failed, likely due to Global Interpreter Lock (GIL) in Python
