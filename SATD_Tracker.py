@@ -507,6 +507,14 @@ def merge_followingSATDs_in_dataframe(df, followingSatdColumn, deleteFollowingSA
     return df    
 
 
+def replace_last(text, old, new):
+    """Replace the last occurrence of old string with new string"""
+    parts = text.rsplit(old, 1)
+    if len(parts) == 1:
+        return text
+    return new.join(parts)
+
+
 def parse_arguments():
     def ensure_trailing_slash(path):
         """Ensure the path ends with a slash."""
@@ -537,7 +545,8 @@ def parse_arguments():
     if args.output_file is None:
         repo_parts = args.repo.split('/')
         if args.repo.startswith('https://github.com'):
-            username, reponame = repo_parts[-2], repo_parts[-1].replace('.git', '')
+            username = repo_parts[-2]
+            reponame = replace_last(repo_parts[-1],'.git','')
             args.output_file = f'{username}___{reponame}_SATD.csv'
             args.raw_output_file = f'{username}___{reponame}_rawSATD.csv'
         else:
@@ -561,7 +570,7 @@ if __name__ == "__main__":
     # download repository
     if args.repo.startswith('https://github.com'):
         print('Downloading repository...')
-        repo_dir = args.downloading_path + args.repo.split('/')[-1].replace('.git', '')
+        repo_dir = args.downloading_path + replace_last(args.repo.split('/')[-1],'.git', '')
         Repo.clone_from(args.repo, repo_dir)
         repo = Repo(repo_dir)
         print('Done')
