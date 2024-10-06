@@ -570,7 +570,7 @@ if __name__ == "__main__":
     # download repository
     if args.repo.startswith('https://github.com'):
         print('Downloading repository...')
-        repo_dir = args.downloading_path + replace_last(args.repo.split('/')[-1],'.git', '')
+        repo_dir = args.downloading_path + args.repo.split('/')[-2] + '___' + replace_last(args.repo.split('/')[-1],'.git', '')
         Repo.clone_from(args.repo, repo_dir)
         repo = Repo(repo_dir)
         print('Done')
